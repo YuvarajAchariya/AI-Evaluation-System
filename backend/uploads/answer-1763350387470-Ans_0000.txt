@@ -1,0 +1,1 @@
+The useEffect hook lets you perform side effects (like data fetching or DOM manipulation) in function components.

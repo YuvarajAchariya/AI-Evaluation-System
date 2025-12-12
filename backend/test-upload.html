@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>File Upload Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        .form-group { margin-bottom: 20px; }
+        input[type="file"] { padding: 10px; border: 2px dashed #ccc; width: 100%; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test File Upload</h1>
+        
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="file">Select File:</label>
+                <input type="file" name="file" id="file" required>
+            </div>
+            <button type="submit">Upload Test File</button>
+        </form>
+
+        <div id="result"></div>
+
+        <div style="margin-top: 30px;">
+            <h3>Test Links:</h3>
+            <ul>
+                <li><a href="http://localhost:5000/api/upload-debug/debug/files" target="_blank">Debug Files Info</a></li>
+                <li><a href="http://localhost:5000/api/upload-debug/" target="_blank">Get All Files</a></li>
+                <li><a href="http://localhost:5000/api/test" target="_blank">API Test</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            const fileInput = document.getElementById('file');
+            const resultDiv = document.getElementById('result');
+            
+            if (!fileInput.files[0]) {
+                resultDiv.innerHTML = '<div class="error">Please select a file</div>';
+                return;
+            }
+
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                resultDiv.innerHTML = '<div>Uploading...</div>';
+                
+                const response = await fetch('http://localhost:5000/api/upload-debug/answers', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `<div class="success">
+                        <strong>✅ Upload Successful!</strong><br>
+                        File: ${data.data.originalName}<br>
+                        Size: ${(data.data.size / 1024).toFixed(2)} KB<br>
+                        ID: ${data.data.id}
+                    </div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">
+                        <strong>❌ Upload Failed:</strong><br>
+                        ${data.error}
+                    </div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">
+                    <strong>❌ Network Error:</strong><br>
+                    ${error.message}
+                </div>`;
+            }
+        });
+    </script>
+</body>
+</html>

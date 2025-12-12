@@ -1,0 +1,1 @@
+An array is the set of collections of homogenous mixtures in java.
