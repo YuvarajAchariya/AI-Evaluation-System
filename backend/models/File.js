@@ -7,7 +7,7 @@ const fileSchema = new mongoose.Schema({
     required: true,
     validate: {
       validator: function(v) {
-        return /^\d{4}$/.test(v); // Must be exactly 4 digits
+        return /^\d{4}$/.test(v);
       },
       message: 'File ID must be a 4-digit number'
     }
@@ -36,31 +36,42 @@ const fileSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  uploadedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Admin'
-  },
-  fileType: {
+  description: {
     type: String,
-    enum: ['answer_sheet', 'evaluation', 'other'],
-    default: 'answer_sheet'
+    required: false
+  },
+  // Answers with dynamic question IDs
+  answers: [{
+    questionId: {
+      type: String,
+      required: true
+    },
+    questionNumber: {
+      type: Number,
+      required: true,
+      min: 1,
+      max: 5
+    },
+    answerText: {
+      type: String,
+      required: true
+    },
+    extractedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  totalAnswers: {
+    type: Number,
+    default: 0
   },
   status: {
     type: String,
-    enum: ['uploaded', 'processing', 'processed', 'error'],
+    enum: ['uploaded', 'processed', 'error'],
     default: 'uploaded'
   },
-  studentId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Student',
-    required: false
-  },
-  evaluatorId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Evaluator',
-    required: false
-  },
-  description: {
+  // Universal base ID for all questions
+  universalQuestionId: {
     type: String,
     required: false
   }
@@ -75,10 +86,7 @@ fileSchema.pre('save', async function(next) {
     let attempts = 0;
     
     while (!unique && attempts < 10) {
-      // Generate 4-digit number (1000-9999)
       const randomId = Math.floor(1000 + Math.random() * 9000).toString();
-      
-      // Check if ID already exists
       const existingFile = await mongoose.model('File').findOne({ fileId: randomId });
       
       if (!existingFile) {
@@ -92,6 +100,12 @@ fileSchema.pre('save', async function(next) {
       return next(new Error('Failed to generate unique file ID'));
     }
   }
+  
+  // Generate universal question ID based on file ID
+  if (this.isNew && !this.universalQuestionId) {
+    this.universalQuestionId = `UNIV-${this.fileId}`;
+  }
+  
   next();
 });
 

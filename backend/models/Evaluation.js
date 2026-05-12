@@ -69,6 +69,25 @@ const evaluationSchema = new mongoose.Schema({
   apiResponse: {
     type: Object,
     required: false
+  },
+  /* ── Re-evaluation fields (written back by evaluator review) ── */
+  evaluatorFeedback: {
+    type: String,
+    default: ''
+  },
+  human_corrected_marks: {
+    type: Number
+  },
+  corrected_percentage: {
+    type: Number
+  },
+  requires_human_correction: {
+    type: Boolean,
+    default: false
+  },
+  reEvaluated: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

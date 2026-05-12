@@ -1,0 +1,10 @@
+
+1.Answer one Cassanadara is database used to nosql and semistructure data providing a high availablity and replicas and fault tolerance 
+
+2.Answer two Sql is a structured query language databases with schema and table-based on the scale schema and have consistency. NoSql is also database are we can use unstructed data with key value and json formate data.
+
+3.Answer three Sql is a database language used to store the structed data.
+
+4.Answer four Databases are the used to store the data in database or in the local file system.
+
+5.Answer five it is relational data base used to sthe data in the relational data with table and 

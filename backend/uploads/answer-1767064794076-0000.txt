@@ -1,0 +1,5 @@
+1.Strings are immutable in many languages (like Java, Python)
+2.A wrapper class is a class that encapsulates
+3.An interface is a shared boundary or point where two different systems, entities
+4.Python is beautiful language
+5.pes university

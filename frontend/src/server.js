@@ -35,3 +35,9 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+const reevaluationRoutes = require('./routes/reevaluationRoutes');
+app.use('/api', reevaluationRoutes);
+
+const reevaluationRoutes = require('./routes/reevaluationRoutes');
+app.use('/api', reevaluationRoutes);
+

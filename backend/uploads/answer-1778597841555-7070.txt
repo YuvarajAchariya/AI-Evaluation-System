@@ -1,0 +1,9 @@
+1.Data Engineering is the process of designing, building, and managing systems that collect, store, and process data. Data engineers create data pipelines to move data from different sources into databases or data warehouses.
+
+2.ETL stands for Extract, Transform, and Load,Extract: Collect data from different sources like databases, APIs, or files.,Transform: Clean and convert the data into a proper format.
+
+3.Structured data is organized in rows and columns, usually stored in relational databases. Examples include employee records and bank transactions. Unstructured data does not have a fixed format and includes images, videos, emails, and social media posts.
+
+4.It is mainly used for reporting and analysis. Data warehouses help businesses generate insights, create dashboards, and make strategic decisions. Examples include Snowflake, Amazon Redshift, and Google BigQuery.
+
+5.A Data Pipeline is a series of processes used to move data from one system to another. It collects, processes, and transfers data automatically.

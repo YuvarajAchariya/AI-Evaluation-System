@@ -1,0 +1,9 @@
+1.Operating system is system software. It works between user and computer hardware. It helps to run programs in the computer. It manages memory and files. Examples are Windows and Linux.
+
+2.Process management handles running programs in the system. A process is a program in execution. The operating system manages different processes. It helps multiple programs run together. It improves CPU usage.
+
+3.Memory management manages computer memory. The operating system allocates memory to programs. It also removes memory after use. It helps avoid memory wastage. This improves system performance.
+
+4.File management controls files in the computer. It helps create and delete files. Files are stored in folders. Users can access data easily using file management. It also provides data security.
+
+5.Scheduling decides which process uses the CPU. The operating system uses scheduling methods. It helps execute tasks properly. Scheduling improves CPU efficiency. FCFS and Round Robin are examples.

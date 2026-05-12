@@ -4,12 +4,13 @@ const questionSchema = new mongoose.Schema({
   questionId: {
     type: String,
     unique: true,
-    // required: true, // TEMPORARILY COMMENTED OUT FOR DEBUGGING
+    required: true,
     validate: {
       validator: function(v) {
-        return /^\d{4}$/.test(v); // Must be exactly 4 digits
+        // Allow either 4-digit OR 4-digit + dash + single digit (e.g., 1234-1)
+        return /^\d{4}$/.test(v) || /^\d{4}-\d$/.test(v);
       },
-      message: 'Question ID must be a 4-digit number'
+      message: 'Question ID must be: 4-digit number (e.g., 1234) OR 4-digit-dash-single-digit (e.g., 1234-1)'
     }
   },
   questionText: {
@@ -46,6 +47,16 @@ const questionSchema = new mongoose.Schema({
   keywords: [String],
   evaluatorId: {
     type: String,
+    required: false
+  },
+  baseQuestionId: {
+    type: String,
+    required: false
+  },
+  questionNumber: {
+    type: Number,
+    min: 1,
+    max: 5,
     required: false
   },
   isActive: {

@@ -1,0 +1,9 @@
+1.There are different types of networks based on size, such as LAN, MAN, and WAN. Security is also an important part of networks to protect data from unauthorized access. Computer networks play a major role in modern technology and digital communication. Without networks, the internet and online services would not be possible.
+
+2.Internet is used to browse and download the stuff the ianttent and used to research in the internet 
+
+3.An IP Address (Internet Protocol Address) is a unique identification number assigned to every device connected to a network. It helps devices find and communicate with each other on the internet. Just like a home address helps identify a location, an IP address helps identify a device. IP addresses are usually written in numbers separated by dots, such as 192.168.0.1. There are two main types of IP addresses: IPv4 and IPv6. IPv4 uses 32-bit numbers, while IPv6 uses 128-bit numbers for more address combinations. IP addresses can be static (permanent) or dynamic (temporary).
+
+4.They can be wired or wireless and allow multiple devices to access the internet at the same time.
+
+5.t is cost-effective and widely used in organizations and institutions. Examples of LAN include computer labs, office networks, and home Wi-Fi networks. LAN plays an important role in sharing information quickly and efficiently.
