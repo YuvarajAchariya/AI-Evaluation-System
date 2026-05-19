@@ -90,7 +90,7 @@ logging.basicConfig(
 #  CONFIGURATION
 # ════════════════════════════════════════════════════════════
 
-GROQ_API_KEY      = os.environ.get("GROQ_API_KEY", "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")
+GROQ_API_KEY      = os.environ.get("GROQ_API_KEY", "")
 MONGODB_URI       = os.environ.get("MONGODB_URI",  "mongodb://localhost:27017/")
 DATABASE_NAME     = "ai-evaluation-system"
 
