@@ -298,12 +298,23 @@ const StudentHome = ({ user, onLogout }) => {
 
   /* ── open re-eval modal ── */
   const openModal = (ev) => {
-    const cur = Number(ev?.human_corrected_marks ?? ev?.ai_marks_awarded ?? 0);
+    // Marks: human_corrected > evaluator_score > ai_score/score > marksAwarded
+    const cur = Number(
+      ev?.human_corrected_marks ??
+      ev?.evaluator_score ??
+      ev?.ai_marks_awarded ??
+      ev?.ai_score ??
+      ev?.score ??
+      ev?.marksAwarded ??
+      0
+    );
     const max = Number(ev?.maxMarks ?? 10);
+    // questionId like "7070-5" → use as-is for tracking, show "5" in UI
+    const qId = ev?.questionId || ev?.questionNumber || '';
     setSelectedEval(ev);
     setRequestData({
-      questionId: ev?.questionId || ev?.questionNumber || '',
-      currentMarks: cur, maxMarks: max, reason: '', additionalExplanation: '',
+      questionId: qId, currentMarks: cur, maxMarks: max,
+      reason: '', additionalExplanation: '',
       expectedMarks: Math.min(cur + 1, max),
     });
     setShowModal(true);
@@ -347,7 +358,7 @@ const StudentHome = ({ user, onLogout }) => {
         additionalExplanation: requestData.additionalExplanation,
         status: 'pending',
         createdAt: new Date().toISOString(),
-      }, ...prev]); 
+      }, ...prev]);
       showToast('✅ Re-evaluation request submitted!');
       setShowModal(false);
     }
@@ -380,11 +391,20 @@ const StudentHome = ({ user, onLogout }) => {
   };
 
   /* ── stats ── */
+  // Helper: resolve percentage for a single evaluation doc
+  const resolveEvalPct = (e) => {
+    if (e.corrected_percentage != null) return Number(e.corrected_percentage);
+    if (e.ai_percentage != null) return Number(e.ai_percentage);
+    // Python system: score (0-10) / maxMarks
+    const marks = Number(e.human_corrected_marks ?? e.evaluator_score ?? e.ai_marks_awarded ?? e.ai_score ?? e.score ?? e.marksAwarded ?? 0);
+    const mx = Number(e.maxMarks ?? 10);
+    return mx > 0 ? (marks / mx) * 100 : 0;
+  };
   const avg = evaluations.length
-    ? (evaluations.reduce((s, e) => s + Number(e.corrected_percentage ?? e.ai_percentage ?? 0), 0) / evaluations.length).toFixed(1)
+    ? (evaluations.reduce((s, e) => s + resolveEvalPct(e), 0) / evaluations.length).toFixed(1)
     : '—';
   const best = evaluations.length
-    ? Math.max(...evaluations.map(e => Number(e.corrected_percentage ?? e.ai_percentage ?? 0))).toFixed(1)
+    ? Math.max(...evaluations.map(e => resolveEvalPct(e))).toFixed(1)
     : '—';
 
   /* ── toggle expand ── */
@@ -427,15 +447,35 @@ const StudentHome = ({ user, onLogout }) => {
         {!loading && evaluations.length > 0 && evaluations.map((ev, i) => {
           const id = ev._id || ev.id || `ev-${i}`;
           const isOpen = expanded[id];
-          const cur = Number(ev.human_corrected_marks ?? ev.ai_marks_awarded ?? 0);
-          const max = Number(ev.maxMarks ?? 10);
-          const pct = Number(ev.corrected_percentage ?? ev.ai_percentage ?? (max > 0 ? (cur / max) * 100 : 0));
-          const grade = getGrade(pct);
-          const qNum = ev.questionNumber || ev.questionId || (i + 1);
-          const alreadyReq = reEvalRequests.some(r =>
-            r.evaluationId === id || r.questionId === (ev.questionId || ev.questionNumber)
+          // Marks: human_corrected > evaluator_score > ai_score/score > marksAwarded
+          const wasReEval = !!(ev.reEvaluated || (ev.evaluator_score != null && ev.evaluator_score !== ev.ai_score));
+          const cur = Number(
+            wasReEval && ev.human_corrected_marks != null ? ev.human_corrected_marks :
+              wasReEval && ev.evaluator_score != null ? ev.evaluator_score :
+                ev.ai_marks_awarded ?? ev.ai_score ?? ev.score ?? ev.marksAwarded ?? 0
           );
-          const feedback = ev.ai_feedback || ev.detailed_feedback || ev.justification || '—';
+          const max = Number(ev.maxMarks ?? 10);
+          const pct = resolveEvalPct(ev);
+          const grade = getGrade(pct);
+          // questionId "7070-5" → show "5"
+          const qNum = ev.questionNumber ||
+            (ev.questionId && ev.questionId.toString().includes('-')
+              ? ev.questionId.toString().split('-').pop()
+              : ev.questionId) ||
+            (i + 1);
+          const alreadyReq = reEvalRequests.some(r =>
+            r.evaluationId === id || r.questionId === ev.questionId
+          );
+          // Feedback: Python system uses detailed_feedback / summary
+          const feedback = ev.detailed_feedback || ev.ai_feedback || ev.justification || ev.summary || '—';
+          // Rich detail fields from Python system
+          const summaryText = ev.summary;
+          const conceptualAcc = ev.conceptual_accuracy;
+          const completeness = ev.completeness;
+          const strengths = ev.strengths;
+          const improvements = ev.improvements;
+          const spellingGrammar = ev.spelling_grammar;
+          const aiModel = ev.model_used || ev.ai_model_used;
 
           return (
             <div key={id} style={S.evalCard(isOpen)}>
@@ -451,11 +491,12 @@ const StudentHome = ({ user, onLogout }) => {
                     </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                        {fmtDate(ev.evaluationDate || ev.timestamp_utc)}
+                        {fmtDate(ev.evaluationDate || ev.timestamp_utc || ev.savedAt || ev.createdAt)}
                       </span>
-                      {ev.is_answer_correct === true && <span style={S.pill('#10b981', 'rgba(16,185,129,0.12)')}>✔ Correct</span>}
-                      {ev.is_answer_correct === false && <span style={S.pill('#ef4444', 'rgba(239,68,68,0.12)')}>✘ Incorrect</span>}
-                      {ev.requires_human_correction && <span style={S.pill('#f59e0b', 'rgba(245,158,11,0.12)')}>⚠ Needs Review</span>}
+                      {wasReEval && <span style={S.pill('#7c3aed', 'rgba(124,58,237,0.12)')}>🔄 Re-evaluated</span>}
+                      {(ev.is_answer_correct === true || ev.qa_approved === true) && <span style={S.pill('#10b981', 'rgba(16,185,129,0.12)')}>✔ Correct</span>}
+                      {(ev.is_answer_correct === false || ev.qa_approved === false) && <span style={S.pill('#ef4444', 'rgba(239,68,68,0.12)')}>✘ Incorrect</span>}
+                      {ev.requires_human_correction && !wasReEval && <span style={S.pill('#f59e0b', 'rgba(245,158,11,0.12)')}>⚠ Needs Review</span>}
                     </div>
                   </div>
                 </div>
@@ -508,11 +549,68 @@ const StudentHome = ({ user, onLogout }) => {
                     <p style={S.fieldText}>{feedback}</p>
                   </div>
 
+                  {/* Summary */}
+                  {summaryText && summaryText !== feedback && (
+                    <div style={S.fieldBox('6,182,212')}>
+                      <span style={S.fieldLabel('#67e8f9')}>📝 Summary</span>
+                      <p style={S.fieldText}>{summaryText}</p>
+                    </div>
+                  )}
+
+                  {/* Conceptual Accuracy */}
+                  {conceptualAcc && (
+                    <div style={S.fieldBox('99,102,241')}>
+                      <span style={S.fieldLabel('#a5b4fc')}>🧠 Conceptual Accuracy</span>
+                      <p style={S.fieldText}>{conceptualAcc}</p>
+                    </div>
+                  )}
+
+                  {/* Completeness */}
+                  {completeness && (
+                    <div style={S.fieldBox('99,102,241')}>
+                      <span style={S.fieldLabel('#a5b4fc')}>✅ Completeness</span>
+                      <p style={S.fieldText}>{completeness}</p>
+                    </div>
+                  )}
+
+                  {/* Strengths */}
+                  {strengths && (
+                    <div style={S.fieldBox('16,185,129')}>
+                      <span style={S.fieldLabel('#6ee7b7')}>💪 Strengths</span>
+                      <p style={S.fieldText}>{strengths}</p>
+                    </div>
+                  )}
+
+                  {/* Improvements */}
+                  {improvements && (
+                    <div style={S.fieldBox('245,158,11')}>
+                      <span style={S.fieldLabel('#fbbf24')}>🔧 Improvements Needed</span>
+                      <p style={S.fieldText}>{improvements}</p>
+                    </div>
+                  )}
+
+                  {/* Spelling */}
+                  {spellingGrammar && spellingGrammar !== 'No issues detected' && (
+                    <div style={S.fieldBox('239,68,68')}>
+                      <span style={S.fieldLabel('#fca5a5')}>🔤 Spelling & Grammar</span>
+                      <p style={S.fieldText}>{spellingGrammar}</p>
+                    </div>
+                  )}
+
+                  {/* Evaluator Feedback (re-eval) */}
+                  {ev.evaluatorFeedback && (
+                    <div style={S.fieldBox('124,58,237')}>
+                      <span style={S.fieldLabel('#c4b5fd')}>👤 Evaluator Feedback</span>
+                      <p style={S.fieldText}>{ev.evaluatorFeedback}</p>
+                    </div>
+                  )}
+
                   {/* meta row */}
                   <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: '0.77rem', color: '#64748b' }}>
-                    {ev.ai_model_used && <span><strong style={{ color: '#94a3b8' }}>Model:</strong> {ev.ai_model_used}</span>}
+                    {aiModel && <span><strong style={{ color: '#94a3b8' }}>Model:</strong> {aiModel}</span>}
+                    {ev.learning_shots_used != null && <span><strong style={{ color: '#94a3b8' }}>Learning Shots:</strong> {ev.learning_shots_used}</span>}
                     {ev.evaluation_stage && <span><strong style={{ color: '#94a3b8' }}>Stage:</strong> {ev.evaluation_stage}</span>}
-                    {ev.universalId && <span><strong style={{ color: '#94a3b8' }}>ID:</strong> {ev.universalId}</span>}
+                    {(ev.universalId || ev.base_id) && <span><strong style={{ color: '#94a3b8' }}>ID:</strong> {ev.universalId || ev.base_id}</span>}
                   </div>
 
                   {/* action */}
@@ -703,36 +801,6 @@ const StudentHome = ({ user, onLogout }) => {
   };
 
   /* ═══════════════════════════════════════
-     MODAL
-  ═══════════════════════════════════════ */
-  const Modal = () => (
-    <div style={S.overlay} onClick={() => setShowModal(false)}>
-      <div style={S.modal} onClick={e => e.stopPropagation()}>
-        <div style={S.modalHeader}>
-          <span style={S.modalTitle}>⟳ Request Re-evaluation</span>
-          <button style={S.closeBtn} onClick={() => setShowModal(false)}>✕</button>
-        </div>
-        <div style={S.modalBody}>
-          <div style={S.infoRow}>
-            📌 <strong>Question:</strong> {requestData.questionId}&nbsp;·&nbsp;
-            Current: <strong>{Number(requestData.currentMarks).toFixed(1)} / {requestData.maxMarks}</strong>
-          </div>
-
-          {selectedEval?.questionText && (
-            <div style={{ ...S.fieldBox('6,182,212'), marginBottom: '1rem' }}>
-              <span style={S.fieldLabel('#67e8f9')}>Question</span>
-              <p style={{ ...S.fieldText, fontSize: '0.82rem' }}>{selectedEval.questionText.slice(0, 200)}{selectedEval.questionText.length > 200 ? '…' : ''}</p>
-            </div>
-          )}
-
-          <label style={S.mLabel}>Expected Marks *</label>
-          <input type="number" min={requestData.currentMarks} max={requestData.maxMarks}
-            value={requestData.expectedMarks}
-            onChange={e => setRequestData({ ...requestData, expectedMarks: Number(e.target.value) })}
-            style={S.mInput}
-          />
-
-          <label style={S.mLabel}>Reason *</label>
           <select value={requestData.reason}
             onChange={e => setRequestData({ ...requestData, reason: e.target.value })}
             style={S.mSelect}
@@ -863,7 +931,62 @@ const StudentHome = ({ user, onLogout }) => {
         {activeTab === 'upload' && <UploadTab />}
       </div>
 
-      {showModal && <Modal />}
+      {showModal && (
+        <div style={S.overlay} onClick={() => setShowModal(false)}>
+          <div style={S.modal} onClick={e => e.stopPropagation()}>
+            <div style={S.modalHeader}>
+              <span style={S.modalTitle}>⟳ Request Re-evaluation</span>
+              <button style={S.closeBtn} onClick={() => setShowModal(false)}>✕</button>
+            </div>
+            <div style={S.modalBody}>
+              <div style={S.infoRow}>
+                📌 <strong>Question:</strong> {requestData.questionId}&nbsp;·&nbsp;
+                Current: <strong>{Number(requestData.currentMarks).toFixed(1)} / {requestData.maxMarks}</strong>
+              </div>
+
+              {selectedEval?.questionText && (
+                <div style={{ ...S.fieldBox('6,182,212'), marginBottom: '1rem' }}>
+                  <span style={S.fieldLabel('#67e8f9')}>Question</span>
+                  <p style={{ ...S.fieldText, fontSize: '0.82rem' }}>{selectedEval.questionText.slice(0, 200)}{selectedEval.questionText.length > 200 ? '…' : ''}</p>
+                </div>
+              )}
+
+              <label style={S.mLabel}>Expected Marks *</label>
+              <input type="number" min={requestData.currentMarks} max={requestData.maxMarks}
+                value={requestData.expectedMarks}
+                onChange={e => setRequestData({ ...requestData, expectedMarks: Number(e.target.value) })}
+                style={S.mInput}
+              />
+
+              <label style={S.mLabel}>Reason *</label>
+              <select value={requestData.reason}
+                onChange={e => setRequestData({ ...requestData, reason: e.target.value })}
+                style={S.mSelect}
+              >
+                <option value="">Select a reason…</option>
+                <option value="incorrect_marking">Incorrect marking</option>
+                <option value="partial_credit">Partial credit not given</option>
+                <option value="alternative_solution">Alternative solution accepted</option>
+                <option value="other">Other</option>
+              </select>
+
+              <label style={S.mLabel}>Explanation *</label>
+              <textarea rows={4} placeholder="Explain why you believe re-evaluation is warranted…"
+                value={requestData.additionalExplanation}
+                onChange={e => setRequestData({ ...requestData, additionalExplanation: e.target.value })}
+                style={S.mTextarea}
+              />
+            </div>
+            <div style={S.modalFooter}>
+              <button style={S.cancelBtn} onClick={() => setShowModal(false)}>Cancel</button>
+              <button style={S.submitBtn} onClick={submitRequest}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(245,158,11,0.5)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(245,158,11,0.35)'; }}
+              >Submit Request →</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

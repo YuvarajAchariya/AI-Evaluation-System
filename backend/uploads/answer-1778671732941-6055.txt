@@ -1,0 +1,9 @@
+1.Angular is a TypeScript-based front-end framework used for building dynamic single-page web applications. It is developed and maintained by Google. Angular provides features like components, routing, dependency injection, and two-way data binding which help developers create scalable and maintainable applications. It follows a modular architecture and is widely used for enterprise-level applications.
+
+2.A component consists of:HTML template,CSS styles,TypeScript class Components help divide the application into reusable and independent parts, making development and maintenance easier. Angular applications are mainly built using multiple connected components.
+
+3.Data binding is the process of connecting the application data with the HTML view. Angular supports different types of data binding: Interpolation ({{ }}),Property Binding,Event Binding,Two-way Data Binding Two-way data binding allows automatic synchronization between the model and the view. This reduces manual coding and improves user interaction in web applications.
+
+4.Dependency Injection (DI) is a design pattern used in Angular to manage services and dependencies efficiently. Instead of creating objects manually, Angular automatically provides the required service to components or classes. Advantages of Dependency Injection: Reduces code complexit, Improves reusability ,Makes testing easier,Enhances maintainability, Angular has a built-in DI system that helps developers write clean and organized code.
+
+5.Routings is as as ijoijoijol routing.

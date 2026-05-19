@@ -1278,7 +1278,7 @@ def main():
     print("       Empty poll → manual base_id fallback, then resumes")
     print("═" * 65)
 
-    if GROQ_API_KEY in ("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", "", None):
+    if GROQ_API_KEY in ("", "", None):
         print("\n⚠️  Set GROQ_API_KEY:  export GROQ_API_KEY='gsk_...'")
 
     # ── Boot: load all components ─────────────────────────

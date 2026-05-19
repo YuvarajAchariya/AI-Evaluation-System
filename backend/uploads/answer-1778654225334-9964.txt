@@ -1,0 +1,10 @@
+What is ReactJS?
+1.ReactJS is a JavaScript library used for building user interfaces, especially single-page applications. It was developed by Meta Platforms, Inc.. React uses components to create reusable UI elements and improves performance using the Virtual DOM. It helps developers build fast, interactive, and dynamic web applications.
+
+2.A component is a reusable building block in ReactJS. Each component contains its own logic, design, and functionality. Components can be either Functional Components or Class Components. They help in organizing code and make applications easier to maintain and reuse.
+
+3.Only the changed elements are updated in the real DOM, which increases the speed and performance of the application.
+
+4.I dont Kno wthe answ
+
+5.Wt and mkdk jjdijj iapodpo .State helps in creating interactive features such as counters, forms, and dynamic content in React applications.

@@ -280,27 +280,27 @@ const calcGrade = (pct) => {
 const gradeStyle = (grade) => {
   const map = {
     'A+': { color: '#15803d', bg: '#dcfce7' },
-    'A':  { color: '#15803d', bg: '#dcfce7' },
+    'A': { color: '#15803d', bg: '#dcfce7' },
     'B+': { color: '#b45309', bg: '#fef3c7' },
-    'B':  { color: '#b45309', bg: '#fef3c7' },
-    'C':  { color: '#0369a1', bg: '#e0f2fe' },
-    'D':  { color: '#6b7280', bg: '#f3f4f6' },
-    'F':  { color: '#b91c1c', bg: '#fee2e2' },
+    'B': { color: '#b45309', bg: '#fef3c7' },
+    'C': { color: '#0369a1', bg: '#e0f2fe' },
+    'D': { color: '#6b7280', bg: '#f3f4f6' },
+    'F': { color: '#b91c1c', bg: '#fee2e2' },
   };
   return map[grade] || { color: '#6b7280', bg: '#f3f4f6' };
 };
 
 const statusStyle = (status) => {
   const map = {
-    'Completed':    { color: '#15803d', bg: '#dcfce7' },
+    'Completed': { color: '#15803d', bg: '#dcfce7' },
     'Re-evaluated': { color: '#b45309', bg: '#fef3c7' },
-    'Pending':      { color: '#6b7280', bg: '#f3f4f6' },
+    'Pending': { color: '#6b7280', bg: '#f3f4f6' },
   };
   return map[status] || { color: '#6b7280', bg: '#f3f4f6' };
 };
 
 const pctColor = (p) => p >= 80 ? '#15803d' : p >= 60 ? '#d97706' : '#dc2626';
-const pctBar   = (p) => p >= 80 ? '#22c55e' : p >= 60 ? '#f59e0b' : '#ef4444';
+const pctBar = (p) => p >= 80 ? '#22c55e' : p >= 60 ? '#f59e0b' : '#ef4444';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '—';
@@ -316,11 +316,22 @@ const aggregateByStudent = (docs) => {
   const map = {};
 
   docs.forEach((doc) => {
-    const sid = doc.universalId || doc.studentId || doc.fileId || 'Unknown';
+    // Python system: base_id="7070", questionId="7070-5", universalId="UNIV-7070"
+    // Mongoose model: studentId, universalId
+    const sid =
+      doc.base_id ||
+      (doc.universalId ? doc.universalId.replace(/^UNIV-/, '') : null) ||
+      doc.studentId ||
+      doc.fileId ||
+      (doc.questionId ? doc.questionId.toString().split('-')[0] : null) ||
+      'Unknown';
+
+    const sName = doc.studentName || doc.student_label || doc.studentId || sid;
+
     if (!map[sid]) {
       map[sid] = {
         studentId: sid,
-        studentName: doc.studentName || sid,
+        studentName: sName,
         totalMarks: 0,
         maxMarks: 0,
         submissionDate: null,
@@ -331,21 +342,27 @@ const aggregateByStudent = (docs) => {
       };
     }
     const entry = map[sid];
-    // Prefer human_corrected_marks over marksAwarded when re-evaluated
-    const awarded = parseFloat(
-      (doc.reEvaluated && doc.human_corrected_marks != null)
-        ? doc.human_corrected_marks
-        : (doc.ai_marks_awarded ?? doc.marksAwarded ?? 0)
-    );
-    const max     = parseFloat(doc.maxMarks ?? 10);
-    entry.totalMarks += awarded;
-    entry.maxMarks   += max;
+    if (sName !== sid && entry.studentName === entry.studentId) entry.studentName = sName;
+
+    // Marks: human_corrected > evaluator_score > ai_score/score > marksAwarded
+    const wasReEval = !!(doc.reEvaluated || (doc.evaluator_score != null && doc.evaluator_score !== doc.ai_score));
+    let awarded;
+    if (wasReEval && doc.human_corrected_marks != null) {
+      awarded = parseFloat(doc.human_corrected_marks);
+    } else if (wasReEval && doc.evaluator_score != null) {
+      awarded = parseFloat(doc.evaluator_score);
+    } else {
+      awarded = parseFloat(doc.ai_marks_awarded ?? doc.ai_score ?? doc.score ?? doc.marksAwarded ?? 0);
+    }
+    const max = parseFloat(doc.maxMarks ?? 10);
+    entry.totalMarks += isNaN(awarded) ? 0 : awarded;
+    entry.maxMarks   += isNaN(max) ? 10 : max;
 
     if (doc.requires_human_correction) entry.requiresCorrection = true;
-    if (doc.reEvaluated) entry.reEvaluated = true;
+    if (wasReEval) entry.reEvaluated = true;
     if (doc.evaluation_stage) entry.evaluationStage = doc.evaluation_stage;
 
-    const docDate = doc.evaluationDate || doc.timestamp_utc;
+    const docDate = doc.evaluationDate || doc.timestamp_utc || doc.savedAt || doc.createdAt;
     if (docDate && (!entry.submissionDate || new Date(docDate) > new Date(entry.submissionDate))) {
       entry.submissionDate = docDate;
     }
@@ -401,13 +418,13 @@ const DetailsModal = ({ student, onClose }) => {
           {/* Student summary strip */}
           <div style={s.studentStrip}>
             {[
-              { k: 'Student ID',   v: student.studentId },
+              { k: 'Student ID', v: student.studentId },
               { k: 'Student Name', v: student.studentName },
-              { k: 'Total Marks',  v: `${student.totalMarks} / ${student.maxMarks}` },
-              { k: 'Percentage',   v: `${student.percentage}%` },
-              { k: 'Grade',        v: student.grade },
-              { k: 'Status',       v: student.status },
-              { k: 'Date',         v: student.submissionDate },
+              { k: 'Total Marks', v: `${student.totalMarks} / ${student.maxMarks}` },
+              { k: 'Percentage', v: `${student.percentage}%` },
+              { k: 'Grade', v: student.grade },
+              { k: 'Status', v: student.status },
+              { k: 'Date', v: student.submissionDate },
             ].map(({ k, v }) => (
               <div style={s.stripItem} key={k}>
                 <span style={s.stripKey}>{k}</span>
@@ -420,20 +437,37 @@ const DetailsModal = ({ student, onClose }) => {
           {student.questions.length === 0 ? (
             <p style={s.empty}>No question details available.</p>
           ) : student.questions.map((q, i) => {
-            // Prefer re-evaluated marks if available
-            const awarded  = parseFloat(
-              (q.reEvaluated && q.human_corrected_marks != null)
-                ? q.human_corrected_marks
-                : (q.ai_marks_awarded ?? q.marksAwarded ?? 0)
-            );
-            const maxM     = parseFloat(q.maxMarks ?? 10);
-            const qPct     = maxM > 0 ? Math.round((awarded / maxM) * 100) : 0;
-            const qNum     = q.questionNumber || q.questionId || (i + 1);
-            const feedback = q.ai_feedback || q.detailed_feedback || q.justification || '—';
-            const isCorrect = q.is_answer_correct;
+            // Marks: human_corrected > evaluator_score > ai_score/score > marksAwarded
+            const wasReEvaluated = !!(q.reEvaluated || (q.evaluator_score != null && q.evaluator_score !== q.ai_score));
+            let awarded;
+            if (wasReEvaluated && q.human_corrected_marks != null) {
+              awarded = parseFloat(q.human_corrected_marks);
+            } else if (wasReEvaluated && q.evaluator_score != null) {
+              awarded = parseFloat(q.evaluator_score);
+            } else {
+              awarded = parseFloat(q.ai_marks_awarded ?? q.ai_score ?? q.score ?? q.marksAwarded ?? 0);
+            }
+            const maxM = parseFloat(q.maxMarks ?? 10);
+            const qPct = maxM > 0 ? Math.round((awarded / maxM) * 100) : 0;
+            // questionId like "7070-5" → display "Question 5"
+            const qNum = q.questionNumber ||
+              (q.questionId && q.questionId.toString().includes('-')
+                ? q.questionId.toString().split('-').pop()
+                : q.questionId) ||
+              (i + 1);
+            // Feedback from Python system
+            const feedback = q.detailed_feedback || q.ai_feedback || q.justification || q.summary || '—';
+            const isCorrect = q.is_answer_correct ?? q.qa_approved;
             const needsHuman = q.requires_human_correction;
-            const wasReEvaluated = q.reEvaluated;
             const evaluatorFeedback = q.evaluatorFeedback;
+            // Rich fields from Python system
+            const summaryText = q.summary;
+            const conceptualAcc = q.conceptual_accuracy;
+            const completeness = q.completeness;
+            const strengths = q.strengths;
+            const improvements = q.improvements;
+            const spellingGrammar = q.spelling_grammar;
+            const aiModelUsed = q.model_used || q.ai_model_used;
 
             return (
               <div style={s.qCard} key={q._id || i}>
@@ -523,12 +557,60 @@ const DetailsModal = ({ student, onClose }) => {
                     </div>
                   )}
 
+                  {/* Summary */}
+                  {summaryText && (
+                    <div>
+                      <span style={s.fieldLabel}>📝 Summary</span>
+                      <div style={{ ...s.fieldText, borderColor: '#e0f2fe', background: '#f0f9ff' }}>{summaryText}</div>
+                    </div>
+                  )}
+
+                  {/* Conceptual Accuracy */}
+                  {conceptualAcc && (
+                    <div>
+                      <span style={s.fieldLabel}>🧠 Conceptual Accuracy</span>
+                      <div style={s.fieldText}>{conceptualAcc}</div>
+                    </div>
+                  )}
+
+                  {/* Completeness */}
+                  {completeness && (
+                    <div>
+                      <span style={s.fieldLabel}>✅ Completeness</span>
+                      <div style={s.fieldText}>{completeness}</div>
+                    </div>
+                  )}
+
+                  {/* Strengths */}
+                  {strengths && (
+                    <div>
+                      <span style={s.fieldLabel}>💪 Strengths</span>
+                      <div style={{ ...s.fieldText, borderColor: '#bbf7d0', background: '#f0fdf4' }}>{strengths}</div>
+                    </div>
+                  )}
+
+                  {/* Improvements */}
+                  {improvements && (
+                    <div>
+                      <span style={s.fieldLabel}>🔧 Improvements</span>
+                      <div style={{ ...s.fieldText, borderColor: '#fde68a', background: '#fffbeb' }}>{improvements}</div>
+                    </div>
+                  )}
+
+                  {/* Spelling / Grammar */}
+                  {spellingGrammar && spellingGrammar !== 'No issues detected' && (
+                    <div>
+                      <span style={s.fieldLabel}>🔤 Spelling & Grammar</span>
+                      <div style={{ ...s.fieldText, borderColor: '#fca5a5', background: '#fff1f2' }}>{spellingGrammar}</div>
+                    </div>
+                  )}
+
                   {/* Extra info row */}
                   <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                    {q.ai_model_used && (
+                    {aiModelUsed && (
                       <div style={s.stripItem}>
                         <span style={s.stripKey}>AI Model</span>
-                        <span style={{ ...s.stripVal, fontSize: '0.8rem', color: '#64748b' }}>{q.ai_model_used}</span>
+                        <span style={{ ...s.stripVal, fontSize: '0.8rem', color: '#64748b' }}>{aiModelUsed}</span>
                       </div>
                     )}
                     {q.evaluation_stage && (
@@ -537,12 +619,18 @@ const DetailsModal = ({ student, onClose }) => {
                         <span style={{ ...s.stripVal, fontSize: '0.8rem', color: '#64748b' }}>{q.evaluation_stage}</span>
                       </div>
                     )}
-                    {(q.evaluationDate || q.timestamp_utc) && (
+                    {(q.evaluationDate || q.timestamp_utc || q.savedAt) && (
                       <div style={s.stripItem}>
                         <span style={s.stripKey}>Evaluated On</span>
                         <span style={{ ...s.stripVal, fontSize: '0.8rem', color: '#64748b' }}>
-                          {formatDate(q.evaluationDate || q.timestamp_utc)}
+                          {formatDate(q.evaluationDate || q.timestamp_utc || q.savedAt)}
                         </span>
+                      </div>
+                    )}
+                    {q.learning_shots_used != null && (
+                      <div style={s.stripItem}>
+                        <span style={s.stripKey}>Learning Shots</span>
+                        <span style={{ ...s.stripVal, fontSize: '0.8rem', color: '#64748b' }}>{q.learning_shots_used}</span>
                       </div>
                     )}
                   </div>
@@ -558,12 +646,12 @@ const DetailsModal = ({ student, onClose }) => {
 
 /* ─── Main Component ─────────────────────────────────────────────── */
 const ViewResults = ({ subjectId }) => {
-  const [filter, setFilter]       = useState('all');
-  const [btnHov, setBtnHov]       = useState({});
-  const [results, setResults]     = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState(null);
-  const [selected, setSelected]   = useState(null); // student row for details modal
+  const [filter, setFilter] = useState('all');
+  const [btnHov, setBtnHov] = useState({});
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selected, setSelected] = useState(null); // student row for details modal
 
   const hov = (k, v) => setBtnHov(h => ({ ...h, [k]: v }));
 
@@ -589,8 +677,8 @@ const ViewResults = ({ subjectId }) => {
 
   /* ── Derived stats ── */
   const filteredResults = filter === 'all' ? results : results.filter(r => r.status === filter);
-  const totalStudents   = results.length;
-  const averageMarks    = totalStudents > 0
+  const totalStudents = results.length;
+  const averageMarks = totalStudents > 0
     ? results.reduce((acc, r) => acc + r.percentage, 0) / totalStudents
     : 0;
   const topPerformer = totalStudents > 0
@@ -598,10 +686,10 @@ const ViewResults = ({ subjectId }) => {
     : null;
 
   const stats = [
-    { label: 'Total Students', value: totalStudents,                           color: '#3b82f6', accent: '59,130,246' },
-    { label: 'Average Marks',  value: `${averageMarks.toFixed(1)}%`,           color: '#22c55e', accent: '34,197,94'  },
-    { label: 'Highest Grade',  value: topPerformer ? topPerformer.grade : '—', color: '#f59e0b', accent: '245,158,11' },
-    { label: 'Re-evaluated',   value: results.filter(r => r.status === 'Re-evaluated').length, color: '#0ea5e9', accent: '14,165,233' },
+    { label: 'Total Students', value: totalStudents, color: '#3b82f6', accent: '59,130,246' },
+    { label: 'Average Marks', value: `${averageMarks.toFixed(1)}%`, color: '#22c55e', accent: '34,197,94' },
+    { label: 'Highest Grade', value: topPerformer ? topPerformer.grade : '—', color: '#f59e0b', accent: '245,158,11' },
+    { label: 'Re-evaluated', value: results.filter(r => r.status === 'Re-evaluated').length, color: '#0ea5e9', accent: '14,165,233' },
   ];
 
   return (
